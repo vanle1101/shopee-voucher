@@ -46,6 +46,10 @@ POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "15"))
 ENABLE_POST_MONITOR = os.getenv("ENABLE_POST_MONITOR", "True").lower() in ["true", "1", "yes"]
 ENABLE_DEAL_MONITOR = os.getenv("ENABLE_DEAL_MONITOR", "True").lower() in ["true", "1", "yes"]
 
+# Header icon kiểu Telegram Premium ⭐
+HEADER_DEAL = os.getenv("HEADER_DEAL", "⭐ VOUCHER MỚI").strip()
+HEADER_POST = os.getenv("HEADER_POST", "⭐ THÔNG BÁO SĂN SALE").strip()
+
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "state.json")
 
 # User-Agent giả lập trình duyệt thật
@@ -410,8 +414,8 @@ def fetch_item(item_type: str, item_id: int | str, timeout: int = 15) -> Optiona
 # ==============================================================================
 
 def format_telegram_message(item: Dict[str, Any]) -> str:
-    """Định dạng bài viết gửi Telegram (đã bỏ link noti.sale theo yêu cầu)."""
-    header = "🔥 VOUCHER MỚI" if item["type"] == "deal" else "📢 THÔNG BÁO SĂN SALE"
+    """Định dạng bài viết gửi Telegram với icon Premium ⭐."""
+    header = HEADER_DEAL if item["type"] == "deal" else HEADER_POST
     parts = [
         header,
         "",

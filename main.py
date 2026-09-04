@@ -367,7 +367,7 @@ def fetch_item(item_type: str, item_id: int | str, timeout: int = 15) -> Optiona
 # ==============================================================================
 
 def format_telegram_message(item: Dict[str, Any]) -> str:
-    """Định dạng bài viết gửi Telegram."""
+    """Định dạng bài viết gửi Telegram (đã bỏ link noti.sale theo yêu cầu)."""
     header = "🔥 VOUCHER MỚI" if item["type"] == "deal" else "📢 THÔNG BÁO SĂN SALE"
     parts = [
         header,
@@ -377,9 +377,6 @@ def format_telegram_message(item: Dict[str, Any]) -> str:
     ]
     if item.get("content"):
         parts.append(item["content"])
-        parts.append("")
-
-    parts.append(f"🔗 {item['url']}")
 
     if item.get("voucher_code"):
         parts.append("")

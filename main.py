@@ -466,12 +466,14 @@ def poll_once(state: Dict[str, Any]) -> int:
     # 1. Quét Post mới
     if ENABLE_POST_MONITOR:
         current_post_id = state.get("last_post_id", 47448)
-        next_post_id = current_post_id + 1
-        # Thử lấy liên tiếp nếu có nhiều bài mới
-        while True:
-            post = fetch_item("post", next_post_id)
+        check_id = current_post_id + 1
+        misses = 0
+        max_misses = 6  # Bỏ qua tối đa 6 ID trống liên tiếp (do bài nháp hoặc admin xoá)
+
+        while misses < max_misses:
+            post = fetch_item("post", check_id)
             if post:
-                logger.info(f"🎉 PHÁT HIỆN POST MỚI #{next_post_id}: {post['title'][:60]}...")
+                logger.info(f"🎉 PHÁT HIỆN POST MỚI #{check_id}: {post['title'][:60]}...")
                 if post.get("voucher_code"):
                     logger.info(f"   🎟 Phát hiện mã: {post['voucher_code']}")
                 if post.get("primary_image"):
@@ -480,32 +482,39 @@ def poll_once(state: Dict[str, Any]) -> int:
                 # Gửi Telegram
                 ok = send_telegram(post, CHAT_ID, fallback_chat_id=PRIVATE_CHAT_ID)
                 if ok:
-                    logger.info(f"   ✅ Đã gửi thành công Post #{next_post_id} sang Telegram!")
-                    mark_item_sent("post", next_post_id, state)
+                    logger.info(f"   ✅ Đã gửi thành công Post #{check_id} sang Telegram!")
+                    mark_item_sent("post", check_id, state)
                     sent_count += 1
-                next_post_id += 1
+                    time.sleep(1.5)  # Giãn cách 1.5s để tuân thủ rate-limit của Telegram
+                misses = 0
             else:
-                break
+                misses += 1
+            check_id += 1
 
     # 2. Quét Deal mới
     if ENABLE_DEAL_MONITOR:
         current_deal_id = state.get("last_deal_id", 40555)
-        next_deal_id = current_deal_id + 1
-        while True:
-            deal = fetch_item("deal", next_deal_id)
+        check_id = current_deal_id + 1
+        misses = 0
+        max_misses = 6
+
+        while misses < max_misses:
+            deal = fetch_item("deal", check_id)
             if deal:
-                logger.info(f"🎉 PHÁT HIỆN DEAL MỚI #{next_deal_id}: {deal['title'][:60]}...")
+                logger.info(f"🎉 PHÁT HIỆN DEAL MỚI #{check_id}: {deal['title'][:60]}...")
                 if deal.get("primary_image"):
                     logger.info(f"   🖼 Link ảnh: {deal['primary_image']}")
                 
                 ok = send_telegram(deal, CHAT_ID, fallback_chat_id=PRIVATE_CHAT_ID)
                 if ok:
-                    logger.info(f"   ✅ Đã gửi thành công Deal #{next_deal_id} sang Telegram!")
-                    mark_item_sent("deal", next_deal_id, state)
+                    logger.info(f"   ✅ Đã gửi thành công Deal #{check_id} sang Telegram!")
+                    mark_item_sent("deal", check_id, state)
                     sent_count += 1
-                next_deal_id += 1
+                    time.sleep(1.5)
+                misses = 0
             else:
-                break
+                misses += 1
+            check_id += 1
 
     return sent_count
 

@@ -126,20 +126,46 @@ def mark_item_sent(item_type: str, item_id: int | str, state: Dict[str, Any]) ->
     save_state(state)
 
 
-# ==============================================================================
-# HÀM XỬ LÝ DỮ LIỆU & LÀM SẠCH TEXT
-# ==============================================================================
-
 def clean_text(text: str) -> str:
-    """Làm sạch HTML entities, ký tự thừa và chuẩn hóa xuống dòng."""
+    """
+    Làm sạch text:
+    - Giải mã HTML entities
+    - Xóa bỏ hoàn toàn câu chữ quảng cáo tích điểm, tải app Nô Tì
+    - Chuẩn hóa khoảng trắng và ngắt dòng
+    """
     if not text:
         return ""
     text = html_lib.unescape(text)
     text = text.replace("\xa0", " ")
+
+    # Danh sách mẫu quảng cáo của Nô Tì cần xóa bỏ
+    promo_patterns = [
+        r"\*\*?Đừng quên trước khi Đặt hàng nhớ share link mua hàng tích điểm[^\n]*",
+        r"Xem hướng dẫn tích điểm tại\s*[>:：]*\s*https?://[^\s]+",
+        r"share link mua hàng tích điểm qua app Noti[^\n]*",
+        r"tích điểm thưởng app Nô Tì[^\n]*",
+        r"Hướng dẫn bật đồng hồ Nô Tì[^\n]*",
+        r"bấm vào nút \"Nhắc\" trên sản phẩm ở app Nô Tì[^\n]*",
+        r"https?://noti\.sale/story/\d+[^\s]*",
+        r"https?://noti\.sale/deal/\d+[^\s]*",
+        r"https?://noti\.sale/post/\d+[^\s]*"
+    ]
+    for pattern in promo_patterns:
+        text = re.sub(pattern, "", text, flags=re.IGNORECASE)
+
     lines = [line.strip() for line in text.split("\n")]
     cleaned = []
     prev_empty = False
     for line in lines:
+        line_lower = line.lower()
+        # Lọc bỏ các dòng chứa nội dung tích điểm / quảng cáo Nô Tì còn sót
+        if "tích điểm" in line_lower and ("app noti" in line_lower or "noti.sale" in line_lower or "điểm thưởng" in line_lower):
+            continue
+        if "hướng dẫn tích điểm" in line_lower:
+            continue
+        if "noti.sale/story" in line_lower:
+            continue
+
         if not line:
             if not prev_empty:
                 cleaned.append("")
@@ -147,6 +173,7 @@ def clean_text(text: str) -> str:
         else:
             cleaned.append(line)
             prev_empty = False
+
     return "\n".join(cleaned).strip()
 
 

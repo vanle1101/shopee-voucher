@@ -672,7 +672,11 @@ def test_single_item(item_type: str, item_id: str):
     print(msg)
     print("------------------------\n")
     logger.info(f"Gửi sang Telegram {CHAT_ID}...")
-    send_telegram(item, CHAT_ID, fallback_chat_id=PRIVATE_CHAT_ID)
+    ok = send_telegram(item, CHAT_ID, fallback_chat_id=PRIVATE_CHAT_ID)
+    if ok:
+        logger.info("✅ Đã gửi thành công sang Telegram!")
+    else:
+        logger.error("❌ Gửi sang Telegram thất bại!")
 
 
 def main():

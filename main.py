@@ -450,6 +450,47 @@ def send_telegram(item: Dict[str, Any], chat_id: str, fallback_chat_id: Optional
         return False
 
 
+def is_shopping_deal(item: Dict[str, Any]) -> Tuple[bool, str]:
+    """
+    Kiểm tra xem bài viết có thực sự là deal / voucher mua sắm hay không:
+    - Loại bỏ các bài rác: bình chọn, tương tác Facebook, feedback, tâm sự app Nô Tì.
+    - Chỉ giữ lại các bài mua sắm thật (Shopee, Lazada, TikTok, mã giảm giá, voucher, link deal).
+    """
+    title = item.get("title", "")
+    content = item.get("content", "")
+    full_text = f"{title} {content}".lower()
+
+    # 1. Từ khóa rác / tương tác cộng đồng / minigame không có deal
+    junk_keywords = [
+        "bình chọn", "kéo tương tác", "bài đánh giá", "vũ trụ feedback", "feedback",
+        "thả like", "tâm sự", "khảo sát", "bảo trì", "cập nhật phiên bản", "điểm nô tì",
+        "rinh 2.000 điểm", "tặng điểm nô tì", "mini game", "minigame", "bình chọn bài"
+    ]
+    for kw in junk_keywords:
+        if kw in full_text:
+            return False, f"Chứa nội dung cộng đồng/feedback ('{kw}')"
+
+    # 2. Loại bài chỉ dẫn link Facebook kéo tương tác
+    if "facebook.com" in full_text and not any(sig in full_text for sig in ["shp.ee", "nghien.co", "s.shopee.vn", "shopee.vn", "lazada.vn"]):
+        return False, "Chỉ chứa link Facebook (kéo tương tác)"
+
+    # 3. Nếu có mã voucher thì luôn hợp lệ
+    if item.get("voucher_code"):
+        return True, "Có mã voucher"
+
+    # 4. Phải có tín hiệu sàn hoặc ưu đãi mua sắm
+    shopping_signals = [
+        "shopee", "lazada", "tiktok", "tmall", "shopeefood", "grabfood", "tiki",
+        "shp.ee", "nghien.co", "s.shopee.vn", "mã", "voucher", "giảm", "sale",
+        "hoàn xu", "freeship", "0đ", "1k", "9k", "flash sale", "deal", "chốt đơn",
+        "giá gốc", "triệu", "đơn từ"
+    ]
+    if not any(sig in full_text for sig in shopping_signals):
+        return False, "Không chứa thông tin mua sắm / mã giảm giá"
+
+    return True, "Hợp lệ"
+
+
 # ==============================================================================
 # HÀM THỰC THI CHU KỲ POLLING REAL-TIME (HƯỚNG 2)
 # ==============================================================================
@@ -459,6 +500,7 @@ def poll_once(state: Dict[str, Any]) -> int:
     Thực hiện 1 chu kỳ quét:
     - Quét bài Post tiếp theo (last_post_id + 1, +2, ...)
     - Quét Deal tiếp theo (last_deal_id + 1, +2, ...)
+    - Tự động lọc bỏ các bài rác / feedback cộng đồng
     Trả về số lượng bài viết mới được phát hiện và gửi đi.
     """
     sent_count = 0
@@ -473,6 +515,15 @@ def poll_once(state: Dict[str, Any]) -> int:
         while misses < max_misses:
             post = fetch_item("post", check_id)
             if post:
+                # Kiểm tra lọc bài rác
+                is_deal, reason = is_shopping_deal(post)
+                if not is_deal:
+                    logger.info(f"⏭ BỎ QUA Post #{check_id} (Bài rác/feedback): {reason}")
+                    mark_item_sent("post", check_id, state)
+                    misses = 0
+                    check_id += 1
+                    continue
+
                 logger.info(f"🎉 PHÁT HIỆN POST MỚI #{check_id}: {post['title'][:60]}...")
                 if post.get("voucher_code"):
                     logger.info(f"   🎟 Phát hiện mã: {post['voucher_code']}")
@@ -501,6 +552,15 @@ def poll_once(state: Dict[str, Any]) -> int:
         while misses < max_misses:
             deal = fetch_item("deal", check_id)
             if deal:
+                # Kiểm tra lọc bài rác
+                is_deal, reason = is_shopping_deal(deal)
+                if not is_deal:
+                    logger.info(f"⏭ BỎ QUA Deal #{check_id} (Bài rác/feedback): {reason}")
+                    mark_item_sent("deal", check_id, state)
+                    misses = 0
+                    check_id += 1
+                    continue
+
                 logger.info(f"🎉 PHÁT HIỆN DEAL MỚI #{check_id}: {deal['title'][:60]}...")
                 if deal.get("primary_image"):
                     logger.info(f"   🖼 Link ảnh: {deal['primary_image']}")

@@ -167,16 +167,32 @@ def extract_voucher_and_expiry(text: str, published_time: Optional[str] = None) 
         r"=>\s*([A-Za-z0-9]{8,25})\b",            # Dạng: => VIPR1L5Pu130wiwQjspc
         r"\b([A-Z0-9]{6,20})\s+giảm\s+\d+"         # Dạng: SPFKHAO50 giảm 50%
     ]
-    stopwords = [
-        "SHOPEE", "LAZADA", "TIKTOK", "FLASH", "SALE", "HOT", "DEAL", "NGON", "CHOT",
-        "SHOP", "SAN", "TOAN", "NGANH", "KHUNG", "DON", "GIA", "TOI", "DA", "NHIEU", "CUA", "BAN"
-    ]
+    def is_valid_voucher_code(code: str) -> bool:
+        if not code or len(code) < 4 or code.isdigit():
+            return False
+        # Nếu toàn chữ thường và không có số thì chắc chắn là từ vựng bình thường (như 'shop', 'giam')
+        if code.islower() and not any(c.isdigit() for c in code):
+            return False
+        # Danh sách từ vựng tiếng Việt / tiếng Anh thường gặp trong bài sale
+        stopwords = {
+            "SHOP", "SAN", "TOAN", "NGANH", "KHUNG", "DON", "GIA", "TOI", "DA",
+            "NHIEU", "CUA", "BAN", "GIAM", "LUU", "HOT", "SALE", "DEAL", "SHOPEE",
+            "LAZADA", "TIKTOK", "VOUCHER", "CODE", "MA", "FREE", "SHIP", "FREESHIP",
+            "HAP", "DAN", "XEM", "NGAY", "CHOT", "THUONG", "HIEU", "CUOC", "MOI", "VIP"
+        }
+        if code.upper() in stopwords:
+            return False
+        # Mã voucher chuẩn phải có ít nhất 1 chữ số HOẶC là chuỗi in hoa từ 6 ký tự trở lên
+        has_digit = any(c.isdigit() for c in code)
+        if not has_digit and (len(code) < 6 or not code.isupper()):
+            return False
+        return True
+
     for pattern in code_patterns:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             candidate = match.group(1).strip()
-            # Bỏ qua từ thông dụng
-            if candidate.upper() not in stopwords and not candidate.isdigit():
+            if is_valid_voucher_code(candidate):
                 voucher_code = candidate
                 break
 

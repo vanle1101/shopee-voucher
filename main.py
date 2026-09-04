@@ -535,6 +535,9 @@ def poll_once(state: Dict[str, Any]) -> int:
     Trả về số lượng bài viết mới được phát hiện và gửi đi.
     """
     sent_count = 0
+    cur_p = state.get("last_post_id", 47448)
+    cur_d = state.get("last_deal_id", 40555)
+    logger.info(f"🔍 Bắt đầu quét Noti.sale (Mốc Post: #{cur_p}, Mốc Deal: #{cur_d})...")
 
     # 1. Quét Post mới
     if ENABLE_POST_MONITOR:
@@ -606,6 +609,11 @@ def poll_once(state: Dict[str, Any]) -> int:
             else:
                 misses += 1
             check_id += 1
+
+    if sent_count == 0:
+        logger.info("ℹ️ Quét hoàn tất: Chưa có bài Post hoặc Deal mới nào được đăng tải trên noti.sale.")
+    else:
+        logger.info(f"✨ Quét hoàn tất: Đã gửi thành công {sent_count} bài viết mới!")
 
     return sent_count
 

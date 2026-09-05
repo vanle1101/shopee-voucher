@@ -30,6 +30,10 @@ wheels/
 # State file
 state.json
 
+# Custom banners
+banners/
+banner.png
+
 # IDEs
 .vscode/
 .idea/

@@ -51,6 +51,21 @@ HEADER_DEAL = os.getenv("HEADER_DEAL", "⭐ VOUCHER MỚI").strip()
 HEADER_POST = os.getenv("HEADER_POST", "⭐ THÔNG BÁO SĂN SALE").strip()
 
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "state.json")
+BANNERS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "banners")
+
+
+def get_custom_banner() -> Optional[str]:
+    """Lấy ảnh banner thay thế từ thư mục banners/ (ngẫu nhiên nếu có nhiều ảnh)."""
+    if os.path.exists(BANNERS_DIR):
+        files = [
+            os.path.join(BANNERS_DIR, f)
+            for f in os.listdir(BANNERS_DIR)
+            if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))
+        ]
+        if files:
+            import random
+            return random.choice(files)
+    return None
 
 # User-Agent giả lập trình duyệt thật
 BROWSER_HEADERS = {
@@ -445,23 +460,47 @@ def send_telegram(item: Dict[str, Any], chat_id: str, fallback_chat_id: Optional
     caption = format_telegram_message(item)
     img_url = item.get("primary_image")
 
+    # Nếu không có ảnh sản phẩm thật hoặc ảnh là thumbnail Nô Tì -> tráo bằng ảnh riêng của user
+    if not img_url or "thumbnail.png" in str(img_url):
+        img_url = get_custom_banner()
+
     def _do_send(target):
         if img_url:
+            is_local = isinstance(img_url, str) and os.path.isfile(img_url)
             # Gửi ảnh kèm caption nếu <= 1024 ký tự
             if len(caption) <= 1024:
-                res = requests.post(
-                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
-                    json={"chat_id": target, "photo": img_url, "caption": caption},
-                    timeout=25
-                ).json()
+                if is_local:
+                    with open(img_url, "rb") as f:
+                        res = requests.post(
+                            f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
+                            data={"chat_id": target, "caption": caption},
+                            files={"photo": f},
+                            timeout=35
+                        ).json()
+                else:
+                    res = requests.post(
+                        f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
+                        json={"chat_id": target, "photo": img_url, "caption": caption},
+                        timeout=25
+                    ).json()
                 if res.get("ok"):
                     return True
-            # Nếu dài hơn 1024 ký tự, gửi ảnh riêng rồi gửi text
-            requests.post(
-                f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
-                json={"chat_id": target, "photo": img_url, "caption": caption[:150] + "..."},
-                timeout=25
-            )
+            else:
+                # Nếu dài hơn 1024 ký tự, gửi ảnh riêng rồi gửi text
+                if is_local:
+                    with open(img_url, "rb") as f:
+                        requests.post(
+                            f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
+                            data={"chat_id": target, "caption": caption[:150] + "..."},
+                            files={"photo": f},
+                            timeout=35
+                        )
+                else:
+                    requests.post(
+                        f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
+                        json={"chat_id": target, "photo": img_url, "caption": caption[:150] + "..."},
+                        timeout=25
+                    )
         # Gửi full text qua sendMessage
         res = requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",

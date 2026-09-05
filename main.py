@@ -279,7 +279,7 @@ def extract_images(soup: BeautifulSoup, ld_data: Optional[Dict[str, Any]] = None
         og_img = soup.find("meta", property="og:image")
         if og_img and og_img.get("content"):
             u = og_img["content"]
-            if u.startswith("http") and "opengraph-image" not in u:
+            if u.startswith("http") and "opengraph-image" not in u and "thumbnail.png" not in u:
                 images.append(u)
 
     return images
@@ -491,23 +491,33 @@ def is_shopping_deal(item: Dict[str, Any]) -> Tuple[bool, str]:
     content = item.get("content", "")
     full_text = f"{title} {content}".lower()
 
-    # 1. Từ khóa rác / tương tác cộng đồng / minigame không có deal
+    # 1. Từ khóa rác / tương tác cộng đồng / minigame / câu view live không có deal
     junk_keywords = [
         "bình chọn", "kéo tương tác", "bài đánh giá", "vũ trụ feedback", "feedback",
         "thả like", "tâm sự", "khảo sát", "bảo trì", "cập nhật phiên bản", "điểm nô tì",
-        "rinh 2.000 điểm", "tặng điểm nô tì", "mini game", "minigame", "bình chọn bài"
+        "rinh 2.000 điểm", "tặng điểm nô tì", "mini game", "minigame", "bình chọn bài",
+        "cmt phía dưới", "comment phía dưới", "cmt bên dưới", "comment bên dưới",
+        "live nô tì", "live noti", "nguyện vọng", "đoán thử nha", "đoán thử", "xin được cho các sếp",
+        "săn sale khó? có nô tì", "săn sale khó có nô tì"
     ]
     for kw in junk_keywords:
         if kw in full_text:
-            return False, f"Chứa nội dung cộng đồng/feedback ('{kw}')"
+            return False, f"Chứa nội dung cộng đồng/tương tác/live ('{kw}')"
 
     # 2. Loại bài chỉ dẫn link Facebook kéo tương tác
     if "facebook.com" in full_text and not any(sig in full_text for sig in ["shp.ee", "nghien.co", "s.shopee.vn", "shopee.vn", "lazada.vn"]):
         return False, "Chỉ chứa link Facebook (kéo tương tác)"
 
-    # 3. Nếu có mã voucher thì luôn hợp lệ
-    if item.get("voucher_code"):
-        return True, "Có mã voucher"
+    # 3. Bắt buộc phải có mã voucher HOẶC có link mua sắm sản phẩm thực tế
+    shopping_links = [
+        "shp.ee", "s.shopee.vn", "shopee.vn", "lazada.vn", "lzd.co",
+        "vt.tiktok.com", "tiktok.com", "tiki.vn", "nghien.co"
+    ]
+    has_code = bool(item.get("voucher_code"))
+    has_link = any(link in full_text for link in shopping_links)
+
+    if not has_code and not has_link:
+        return False, "Không có mã voucher và không có link sản phẩm mua sắm (bài tương tác/chém gió)"
 
     # 4. Phải có tín hiệu sàn hoặc ưu đãi mua sắm
     shopping_signals = [

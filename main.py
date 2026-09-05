@@ -498,7 +498,9 @@ def is_shopping_deal(item: Dict[str, Any]) -> Tuple[bool, str]:
         "rinh 2.000 điểm", "tặng điểm nô tì", "mini game", "minigame", "bình chọn bài",
         "cmt phía dưới", "comment phía dưới", "cmt bên dưới", "comment bên dưới",
         "live nô tì", "live noti", "nguyện vọng", "đoán thử nha", "đoán thử", "xin được cho các sếp",
-        "săn sale khó? có nô tì", "săn sale khó có nô tì"
+        "săn sale khó? có nô tì", "săn sale khó có nô tì",
+        "#bikip", "#congdong", "bí kíp", "cộng đồng nô tì", "mục cộng đồng", "cao thủ ẩn danh",
+        "cmt động viên", "mẹo, tip, trick", "tip, trick", "chia sẻ mẹo"
     ]
     for kw in junk_keywords:
         if kw in full_text:
